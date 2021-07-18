@@ -1,7 +1,6 @@
 import test from 'ava';
 import {
     calculateChangeRange,
-    assertNever,
     resolveCachedResult,
 } from '../src/utils';
 
@@ -44,10 +43,6 @@ test('calculateChangeRange', (t) => {
             },
         );
     }
-});
-
-test('assertNever', (t) => {
-    t.throws(() => assertNever(<never>'a'));
 });
 
 test('resolveCachedResult', (t) => {

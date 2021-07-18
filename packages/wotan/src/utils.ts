@@ -49,8 +49,6 @@ export function format<T = any>(value: T, fmt = Format.Yaml): string {
                 schema: yaml.JSON_SCHEMA,
                 sortKeys: true,
             });
-        default:
-            return assertNever(fmt);
     }
 }
 
@@ -81,10 +79,6 @@ function convertToPrintable(value: any): any {
         }
     }
     return added ? newValue : undefined;
-}
-
-export function assertNever(v: never): never {
-    throw new Error(`unexpected value '${v}'`);
 }
 
 export function calculateChangeRange(original: string, changed: string): ts.TextChangeRange {

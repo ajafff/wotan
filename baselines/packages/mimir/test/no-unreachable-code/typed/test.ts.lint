@@ -42,6 +42,7 @@ switch (Boolean()) {
         'bar';
         break;
     default:
+    ~~~~~~~  [error no-unreachable-code: 'default' clause is unreachable in exhaustive 'switch' statements.]
         'baz';
         break;
         'bas';

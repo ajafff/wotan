@@ -114,4 +114,5 @@ function foo() {
 
 ## Related Rules
 
+* [`no-fallthrough`](no-fallthrough.md)
 * [`return-never-call`](return-never-call.md)

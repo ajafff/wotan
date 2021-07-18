@@ -7,6 +7,7 @@ import {
     getControlFlowEnd,
     endsControlFlow,
     isLabeledStatement,
+    hasExhaustiveCaseClauses,
 } from 'tsutils';
 
 type ForDoWhileStatement = ts.ForStatement | ts.WhileStatement | ts.DoStatement;
@@ -17,9 +18,12 @@ export class Rule extends AbstractRule {
         for (const node of this.context.getFlatAst()) {
             switch (node.kind) {
                 case ts.SyntaxKind.Block:
-                case ts.SyntaxKind.CaseClause:
-                case ts.SyntaxKind.DefaultClause:
+                case ts.SyntaxKind.SourceFile:
+                case ts.SyntaxKind.ModuleBlock:
                     this.checkBlock(<ts.BlockLike>node);
+                    break;
+                case ts.SyntaxKind.SwitchStatement:
+                    this.checkSwitch(<ts.SwitchStatement>node);
                     break;
                 case ts.SyntaxKind.IfStatement:
                     this.checkIfStatement(<ts.IfStatement>node);
@@ -31,9 +35,23 @@ export class Rule extends AbstractRule {
         }
     }
 
+    private checkSwitch(node: ts.SwitchStatement) {
+        for (const clause of node.caseBlock.clauses) {
+            this.checkBlock(clause);
+            if (clause.kind === ts.SyntaxKind.DefaultClause) {
+                const checker = this.program?.getTypeChecker();
+                if (checker !== undefined && hasExhaustiveCaseClauses(node, checker))
+                    this.addFindingAtNode(
+                        clause.getFirstToken(this.sourceFile)!,
+                        "'default' clause is unreachable in exhaustive 'switch' statements.",
+                    );
+            }
+        }
+    }
+
     private checkBlock(node: ts.BlockLike) {
         let i = node.statements.findIndex(this.nextStatementIsUnreachable, this);
-        if (i === -1 || i === node.statements.length - 1)
+        if (i === -1)
             return;
         for (i += 1; i < node.statements.length; ++i)
             if (isExecutableStatement(node.statements[i]))
@@ -71,7 +89,9 @@ export class Rule extends AbstractRule {
         this.addFindingAtNode(node.getFirstToken(this.sourceFile)!, 'Unreachable code detected.');
     }
 
-    private nextStatementIsUnreachable(statement: ts.Statement): boolean {
+    private nextStatementIsUnreachable(statement: ts.Statement, index: number, statements: readonly ts.Statement[]): boolean {
+        if (index === statements.length - 1)
+            return false; // no need to check the last statement in a block
         if (endsControlFlow(statement, this.program?.getTypeChecker()))
             return true;
         const labels: string[] = [];

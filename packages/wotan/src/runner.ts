@@ -261,7 +261,7 @@ export class Runner {
     ): Iterable<{files: Iterable<string>, program: ts.Program, configFilePath: string}> {
         const cwd = unixifyPath(this.directories.getCurrentDirectory());
         if (projects.length !== 0) {
-            projects = projects.map((configFile) => this.checkConfigDirectory(unixifyPath(path.resolve(cwd, configFile))));
+            projects = this.matchProjectGlobs(projects);
         } else if (references) {
             projects = [this.checkConfigDirectory(cwd)];
         } else {
@@ -317,6 +317,37 @@ export class Runner {
         function isFileIncluded(fileName: string) {
             return (include.length === 0 || include.some((p) => p.match(fileName))) && !ex.some((p) => p.match(fileName));
         }
+    }
+
+    private matchProjectGlobs(projects: ReadonlyArray<string>) {
+        const cwd = this.directories.getCurrentDirectory();
+        const result = [];
+        const globOptions: glob.IOptions = {
+            cwd,
+            nobrace: true, // braces are already expanded
+            cache: {},
+            realpathCache: {},
+            statCache: {},
+            symlinks: {},
+        };
+        for (const project of projects) {
+            if (!glob.hasMagic(project)) {
+                result.push(this.checkConfigDirectory(unixifyPath(path.resolve(cwd, project))));
+            } else {
+                let matched = false;
+                for (const pattern of normalizeGlob(project, cwd)) {
+                    log("globbing project pattern '%s'", pattern);
+                    for (const match of glob.sync(pattern, globOptions)) {
+                        matched = true;
+                        result.push(this.checkConfigDirectory(unixifyPath(match)));
+                    }
+                }
+                if (!matched)
+                    throw new ConfigurationError(`The specified pattern does not match any file: '${project}'`);
+            }
+
+        }
+        return result;
     }
 
     private checkConfigDirectory(fileOrDirName: string): string {

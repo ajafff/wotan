@@ -107,6 +107,9 @@ src/rules/no-useless-destructuring.js.map
 src/rules/no-useless-initializer.d.ts
 src/rules/no-useless-initializer.js
 src/rules/no-useless-initializer.js.map
+src/rules/no-useless-jsdoc.d.ts
+src/rules/no-useless-jsdoc.js
+src/rules/no-useless-jsdoc.js.map
 src/rules/no-useless-jump-label.d.ts
 src/rules/no-useless-jump-label.js
 src/rules/no-useless-jump-label.js.map

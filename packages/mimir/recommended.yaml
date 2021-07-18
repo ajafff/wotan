@@ -6,6 +6,7 @@ rules:
   ban-dom-globals: error
   delete-only-optional-property: error
   generator-require-yield: error
+  initialize-static-property: error
   new-parens: error
   no-case-declaration: error
   no-debugger: error

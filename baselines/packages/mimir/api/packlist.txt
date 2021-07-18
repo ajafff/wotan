@@ -32,6 +32,9 @@ src/rules/delete-only-optional-property.js.map
 src/rules/generator-require-yield.d.ts
 src/rules/generator-require-yield.js
 src/rules/generator-require-yield.js.map
+src/rules/initialize-static-property.d.ts
+src/rules/initialize-static-property.js
+src/rules/initialize-static-property.js.map
 src/rules/new-parens.d.ts
 src/rules/new-parens.js
 src/rules/new-parens.js.map

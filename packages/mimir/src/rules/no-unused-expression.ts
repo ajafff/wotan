@@ -21,7 +21,7 @@ export interface Options {
 const FAIL_MESSAGE = 'This expression is unused. Did you mean to assign a value or call a function?';
 
 @excludeDeclarationFiles
-export class Rule extends  ConfigurableRule<Options> {
+export class Rule extends ConfigurableRule<Options> {
     public parseOptions(input: Partial<Options> | {} | null | undefined): Options {
         return {
             allowNew: false,

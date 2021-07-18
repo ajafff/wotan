@@ -1,6 +1,6 @@
 import * as ts from 'typescript';
 import { isFunctionScopeBoundary, NodeWrap } from 'tsutils';
-import { AbstractRule, excludeDeclarationFiles } from '@fimbul/ymir';
+import { AbstractRule, excludeDeclarationFiles, CodeAction, Replacement } from '@fimbul/ymir';
 
 @excludeDeclarationFiles
 export class Rule extends AbstractRule {
@@ -41,6 +41,15 @@ export class Rule extends AbstractRule {
             asteriskToken.end - 1,
             asteriskToken.end,
             `Generator ${name === undefined ? '' : `'${name.getText(this.sourceFile).replace(/'/g, "\\'")}' `}contains no 'yield'.`,
+            undefined,
+            CodeAction.create(
+                'Convert to regular function.',
+                Replacement.replace(
+                    asteriskToken.end - 1,
+                    asteriskToken.end,
+                    asteriskToken.pos < asteriskToken.end - 1 || name === undefined ? '' : ' ',
+                ),
+            ),
         );
     }
 }

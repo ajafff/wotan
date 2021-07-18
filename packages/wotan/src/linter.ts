@@ -3,7 +3,6 @@ import {
     Finding,
     EffectiveConfiguration,
     LintAndFixFileResult,
-    Replacement,
     RuleContext,
     Severity,
     RuleConstructor,
@@ -13,6 +12,9 @@ import {
     DeprecationTarget,
     FindingFilterFactory,
     FindingFilter,
+    OneOrMany,
+    Replacement,
+    CodeAction,
 } from '@fimbul/ymir';
 import { applyFixes } from './fix';
 import * as debug from 'debug';
@@ -259,39 +261,33 @@ export class Linter {
         const getFindingFilter = () => {
             return findingFilter ??= this.filterFactory.create({sourceFile, getWrappedAst, ruleNames: rules.map((r) => r.ruleName)});
         };
-        const addFinding = (pos: number, end: number, message: string, fix?: Replacement | ReadonlyArray<Replacement>) => {
-            const finding: Finding = {
-                ruleName,
-                severity,
-                message,
-                start: {
-                    position: pos,
-                    ...ts.getLineAndCharacterOfPosition(sourceFile, pos),
-                },
-                end: {
-                    position: end,
-                    ...ts.getLineAndCharacterOfPosition(sourceFile, end),
-                },
-                fix: fix === undefined
-                    ? undefined
-                    : !Array.isArray(fix)
-                        ? {replacements: [fix]}
-                        : fix.length === 0
-                            ? undefined
-                            : {replacements: fix},
-            };
-            if (getFindingFilter().filter(finding))
-                result.push(finding);
-        };
 
         const context: { -readonly [K in keyof RuleContext]: RuleContext[K] } = {
-            addFinding,
             getFlatAst,
             getWrappedAst,
             get program() { return programFactory?.getProgram(); },
             get compilerOptions() { return programFactory?.getCompilerOptions(); },
             sourceFile,
             settings,
+            addFinding: (pos, end, message, fix, codeActions) => {
+                const finding: Finding = {
+                    ruleName,
+                    severity,
+                    message,
+                    start: {
+                        position: pos,
+                        ...ts.getLineAndCharacterOfPosition(sourceFile, pos),
+                    },
+                    end: {
+                        position: end,
+                        ...ts.getLineAndCharacterOfPosition(sourceFile, end),
+                    },
+                    fix: normalizeFix(fix),
+                    codeActions: arrayify(codeActions, normalizeCodeAction),
+                };
+                if (getFindingFilter().filter(finding))
+                    result.push(finding);
+            },
             options: undefined,
         };
 
@@ -322,4 +318,37 @@ interface PreparedRule {
     options: any;
     ruleName: string;
     severity: Severity;
+}
+
+function normalizeFix(fixOrReplacements: OneOrMany<Replacement> | CodeAction | undefined): CodeAction | undefined {
+    if (fixOrReplacements === undefined)
+        return;
+    if ('description' in fixOrReplacements)
+        return normalizeCodeAction(fixOrReplacements);
+    fixOrReplacements = arrayify(fixOrReplacements, nonEmptyReplacement);
+    return fixOrReplacements && {
+        description: 'auto fix',
+        replacements: fixOrReplacements,
+    };
+}
+
+function normalizeCodeAction(codeAction: CodeAction): CodeAction | undefined {
+    const replacements = mapDefined(codeAction.replacements, nonEmptyReplacement);
+    // tslint:disable-next-line:object-shorthand-properties-first
+    return replacements.length === 0 ? undefined : {description: codeAction.description, replacements};
+}
+
+function nonEmptyReplacement(replacement: Replacement): Replacement | undefined {
+    return replacement.start !== replacement.end || replacement.text !== '' ? replacement : undefined;
+}
+
+function arrayify<T>(maybeArr: OneOrMany<T> | undefined, map: (v: T) => T | undefined): ReadonlyArray<T> | undefined {
+    if (maybeArr === undefined)
+        return;
+    if (!Array.isArray(maybeArr)) {
+        maybeArr = map(<T>maybeArr);
+        return maybeArr === undefined ? undefined : [maybeArr];
+    }
+    maybeArr = mapDefined(maybeArr, map);
+    return maybeArr.length === 0 ? undefined : maybeArr;
 }

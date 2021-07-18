@@ -6,8 +6,8 @@ import { Replacement } from '@fimbul/ymir';
 test('Fixer', (t) => {
     t.deepEqual(
         applyFixes('abc', [
-            {replacements: [Replacement.delete(0, 1)]},
-            {replacements: [Replacement.delete(1, 2)]},
+            {description: '-a', replacements: [Replacement.delete(0, 1)]},
+            {description: '-b', replacements: [Replacement.delete(1, 2)]},
         ]),
         {
             result: 'bc',
@@ -25,8 +25,8 @@ test('Fixer', (t) => {
 
     t.deepEqual(
         applyFixes('abc', [
-            {replacements: [Replacement.delete(0, 1)]},
-            {replacements: [Replacement.delete(2, 3)]},
+            {description: '-a', replacements: [Replacement.delete(0, 1)]},
+            {description: '-c', replacements: [Replacement.delete(2, 3)]},
         ]),
         {
             result: 'b',
@@ -44,7 +44,7 @@ test('Fixer', (t) => {
 
     t.deepEqual(
         applyFixes('abc', [
-            {replacements: [Replacement.delete(0, 1), Replacement.delete(1, 2), Replacement.append(1, 'd')]},
+            {description: 'ab > d', replacements: [Replacement.delete(0, 1), Replacement.delete(1, 2), Replacement.append(1, 'd')]},
         ]),
         {
             result: 'dc',
@@ -62,7 +62,7 @@ test('Fixer', (t) => {
 
     t.deepEqual(
         applyFixes('abc', [
-            {replacements: [Replacement.delete(0, 1), Replacement.delete(2, 3), Replacement.append(2, 'd')]},
+            {description: '-a, c > d', replacements: [Replacement.delete(0, 1), Replacement.delete(2, 3), Replacement.append(2, 'd')]},
         ]),
         {
             result: 'bd',
@@ -80,7 +80,7 @@ test('Fixer', (t) => {
 
     t.deepEqual(
         applyFixes('abc', [
-            {replacements: [Replacement.replace(0, 1, 'd'), Replacement.replace(1, 2, 'e')]},
+            {description: 'a > d, b > e', replacements: [Replacement.replace(0, 1, 'd'), Replacement.replace(1, 2, 'e')]},
         ]),
         {
             result: 'dec',
@@ -98,7 +98,7 @@ test('Fixer', (t) => {
 
     t.deepEqual(
         applyFixes('', [
-            {replacements: [Replacement.append(0, 'a'), Replacement.append(0, 'b')]},
+            {description: '+ab', replacements: [Replacement.append(0, 'a'), Replacement.append(0, 'b')]},
         ]),
         {
             result: 'ab',
@@ -115,24 +115,24 @@ test('Fixer', (t) => {
     );
 
     t.throws(
-        () => applyFixes('', [{replacements: [Replacement.delete(1, 4), Replacement.replace(1, 4, 'b')]}]),
-        { message: 'Replacements of fix overlap.' },
+        () => applyFixes('', [{description: 'foo', replacements: [Replacement.delete(1, 4), Replacement.replace(1, 4, 'b')]}]),
+        { message: "Replacements of code action 'foo' overlap." },
     );
     t.throws(
-        () => applyFixes('', [{replacements: [Replacement.delete(1, 4), Replacement.replace(2, 5, 'b')]}]),
-        { message: 'Replacements of fix overlap.' },
+        () => applyFixes('', [{description: 'bar', replacements: [Replacement.delete(1, 4), Replacement.replace(2, 5, 'b')]}]),
+        { message: "Replacements of code action 'bar' overlap." },
     );
     t.throws(
-        () => applyFixes('', [{replacements: [Replacement.delete(1, 4), Replacement.append(2, 'a')]}]),
-        { message: 'Replacements of fix overlap.' },
+        () => applyFixes('', [{description: 'baz', replacements: [Replacement.delete(1, 4), Replacement.append(2, 'a')]}]),
+        { message: "Replacements of code action 'baz' overlap." },
     );
 
     t.deepEqual(
         applyFixes('abcdefghij', [
-            {replacements: [Replacement.delete(0, 1), Replacement.delete(4, 5)]},
+            {description: '-a, -e', replacements: [Replacement.delete(0, 1), Replacement.delete(4, 5)]},
             // this one will be discarded because of conflict with the following
-            {replacements: [Replacement.delete(2, 3), Replacement.delete(7, 8)]},
-            {replacements: [Replacement.delete(6, 7)]},
+            {description: '-c, -h', replacements: [Replacement.delete(2, 3), Replacement.delete(7, 8)]},
+            {description: '-g', replacements: [Replacement.delete(6, 7)]},
         ]),
         {
             result: 'bcdfhij',
@@ -151,10 +151,10 @@ test('Fixer', (t) => {
     t.deepEqual(
         applyFixes('abcdefghij', [
             // the first replacement is applied, rollback happens at the second replacement
-            {replacements: [Replacement.delete(0, 1), Replacement.delete(3, 4)]},
+            {description: '-a, -d', replacements: [Replacement.delete(0, 1), Replacement.delete(3, 4)]},
             // the first replacement is applied, rollback happens at the second replacement, after the first fix is rolled back
-            {replacements: [Replacement.delete(2, 3), Replacement.delete(7, 8)]},
-            {replacements: [Replacement.delete(6, 7)]},
+            {description: '-c, -h', replacements: [Replacement.delete(2, 3), Replacement.delete(7, 8)]},
+            {description: '-g', replacements: [Replacement.delete(6, 7)]},
         ]),
         {
             result: 'abcdefhij',
@@ -173,13 +173,13 @@ test('Fixer', (t) => {
     t.deepEqual(
         applyFixes('abcdefghij', [
             // applies the first and second replacement, is rolled back at the third
-            {replacements: [Replacement.delete(0, 1), Replacement.delete(3, 4), Replacement.delete(9, 10)]},
+            {description: '-a, -d, -j', replacements: [Replacement.delete(0, 1), Replacement.delete(3, 4), Replacement.delete(9, 10)]},
             // conflicts with the preceding fix, is reapplied after the first fix is rolled back
-            {replacements: [Replacement.delete(1, 2)]},
+            {description: '-b', replacements: [Replacement.delete(1, 2)]},
             // conflicts with the first fix, is reapplied after the first fix is rolled back
-            {replacements: [Replacement.append(4, 'x'), Replacement.append(6, 'y')]},
+            {description: '+x, +y', replacements: [Replacement.append(4, 'x'), Replacement.append(6, 'y')]},
             // causes the first fix to be rolled back
-            {replacements: [Replacement.append(9, 'z')]},
+            {description: '+z', replacements: [Replacement.append(9, 'z')]},
         ]),
         {
             result: 'acdxefyghizj',

@@ -129,6 +129,7 @@ test('Linter', (t) => {
             severity: 'warning',
             start: {position: 0, line: 0, character: 0},
             end: {position: 0, line: 0, character: 0},
+            codeActions: undefined,
         }],
     );
     t.is(warnings.length, 2);
@@ -144,12 +145,14 @@ test('Linter', (t) => {
         [{
             ruleName: 'my/other/alias',
             fix: {
+                description: 'auto fix',
                 replacements: [{start: 0, end: 0, text: '\uFEFF'}],
             },
             message: 'message',
             severity: 'error',
             start: {position: 0, line: 0, character: 0},
             end: {position: 0, line: 0, character: 0},
+            codeActions: undefined,
         }],
     );
     t.is(warnings.length, 3);
@@ -212,6 +215,7 @@ test('Linter', (t) => {
                 severity: 'error',
                 start: {position: 0, line: 0, character: 0},
                 end: {position: 0, line: 0, character: 0},
+                codeActions: undefined,
             }],
         );
         t.is(warnings.length, 5);
@@ -234,6 +238,7 @@ test('Linter', (t) => {
                 severity: 'error',
                 start: {position: 0, line: 0, character: 0},
                 end: {position: 0, line: 0, character: 0},
+                codeActions: undefined,
             }],
         );
         t.is(warnings.length, 5);
@@ -302,6 +307,7 @@ test('Linter', (t) => {
             severity: 'error',
             start: {position: 0, line: 0, character: 0},
             end: {position: 0, line: 0, character: 0},
+            codeActions: undefined,
         }],
         'Should lint checked JS file with type information',
     );
@@ -321,6 +327,7 @@ test('Linter', (t) => {
             severity: 'error',
             start: {position: 0, line: 0, character: 0},
             end: {position: 0, line: 0, character: 0},
+            codeActions: undefined,
         }],
         'Should lint checked JS file with type information',
     );
@@ -372,12 +379,14 @@ test('Linter', (t) => {
             findings: [{
                 ruleName: 'rule',
                 fix: {
+                    description: 'auto fix',
                     replacements: [{start: 0, end: 0, text: '\uFEFF'}],
                 },
                 message: 'message',
                 severity: 'warning',
                 start: {position: 0, line: 0, character: 0},
                 end: {position: 0, line: 0, character: 0},
+                codeActions: undefined,
             }],
         },
     );

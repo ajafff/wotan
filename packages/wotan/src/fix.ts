@@ -1,5 +1,5 @@
 import * as ts from 'typescript';
-import { Fix, Replacement } from '@fimbul/ymir';
+import { CodeAction, Replacement } from '@fimbul/ymir';
 import stableSort = require('stable');
 
 export interface FixResult {
@@ -15,15 +15,15 @@ export interface FixResult {
  * of this fix are not applied again.
  * At least one fix will be applied.
  */
-export function applyFixes(source: string, fixes: Fix[]): FixResult {
-    interface FixWithState extends Fix {
+export function applyFixes(source: string, fixes: readonly CodeAction[]): FixResult {
+    interface FixWithState extends CodeAction {
         state: Record<'position' | 'index' | 'length', number> | undefined;
         skip: boolean;
     }
     let fixed = fixes.length;
     const replacements = [];
     for (const fix of fixes) {
-        const state: FixWithState = {replacements: combineReplacements(fix.replacements), skip: false, state: undefined};
+        const state: FixWithState = {description: fix.description, replacements: combineReplacements(fix), skip: false, state: undefined};
         for (const replacement of state.replacements)
             replacements.push({fix: state, ...replacement});
     }
@@ -96,17 +96,17 @@ function compareReplacements(a: Replacement, b: Replacement): number {
 }
 
 /** Combine adjacent replacements to avoid sorting replacements of other fixes between them. */
-function combineReplacements(replacements: ReadonlyArray<Replacement>): ReadonlyArray<Replacement> {
-    if (replacements.length === 1)
-        return replacements;
+function combineReplacements(fix: CodeAction): ReadonlyArray<Replacement> {
+    if (fix.replacements.length === 1)
+        return fix.replacements;
     // use a stable sorting algorithm to avoid shuffling insertions at the same position as these have the same start and end values
-    replacements = stableSort.inplace(replacements.slice(), compareReplacements);
+    const replacements = stableSort.inplace(fix.replacements.slice(), compareReplacements);
     const result = [];
     let current = replacements[0];
     for (let i = 1; i < replacements.length; ++i) {
         const replacement = replacements[i];
         if (current.end > replacement.start)
-            throw new Error('Replacements of fix overlap.');
+            throw new Error(`Replacements of code action '${fix.description}' overlap.`);
         if (current.end === replacement.start) {
             current = {
                 start: current.start,

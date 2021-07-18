@@ -7,6 +7,8 @@ import {
     FormatterConstructor,
     Replacement,
     typescriptOnly,
+    CodeAction,
+    OneOrMany,
 } from '@fimbul/ymir';
 import * as TSLint from 'tslint';
 import * as ts from 'typescript';
@@ -98,7 +100,7 @@ export function wrapTslintFormatter(Formatter: TSLint.FormatterConstructor): For
                         f.end.position,
                         f.message,
                         f.ruleName,
-                        f.fix && f.fix.replacements.map(convertToTslintReplacement));
+                        f.fix?.replacements.map(convertToTslintReplacement));
                     failure.setRuleSeverity(f.severity === 'suggestion' ? 'warning' : f.severity);
                     return failure;
                 }),
@@ -151,7 +153,7 @@ export function wrapRuleForTslint<T extends RuleContext>(Rule: RuleConstructor<T
                         end,
                         message,
                         options.ruleName,
-                        fix && arrayify(fix).map(convertToTslintReplacement),
+                        convertFixToTslintReplacements(fix),
                     ),
                 );
             },
@@ -179,6 +181,12 @@ export function wrapRuleForTslint<T extends RuleContext>(Rule: RuleConstructor<T
             return apply(this.getOptions(), sourceFile, program);
         }
     };
+}
+
+function convertFixToTslintReplacements(fix: CodeAction | OneOrMany<Replacement> | undefined): TSLint.Replacement[] | undefined {
+    return fix === undefined
+        ? undefined
+        : ('description' in fix ? fix.replacements : arrayify(fix)).map(convertToTslintReplacement);
 }
 
 function convertToTslintReplacement(r: Replacement) {

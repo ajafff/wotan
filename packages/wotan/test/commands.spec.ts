@@ -716,7 +716,7 @@ ${path.normalize('test/.success.test.json')}
             }
 
             public stat(f: string): Stats {
-                if (f.includes('/baselines/'))
+                if (f.includes('/baselines/') && !f.endsWith('.diff')) // TODO
                     return {
                         isFile() { return true; },
                         isDirectory() { return false; },

@@ -6,6 +6,7 @@ import {
     ProcessorSuffixContext,
     ProcessorContext,
     FindingPosition,
+    CodeAction,
 } from '@fimbul/ymir';
 import * as path from 'path';
 import * as SAXParser from 'parse5-sax-parser';
@@ -109,8 +110,10 @@ export class Processor extends AbstractProcessor {
             fix: f.fix === undefined
                 ? undefined
                 : {
+                    description: f.fix.description,
                     replacements: f.fix.replacements.map(this.mapReplacement, this),
                 },
+            codeActions: f.codeActions?.map(this.mapCodeAction, this),
         };
     }
 
@@ -128,6 +131,13 @@ export class Processor extends AbstractProcessor {
             start: r.start + this.range.start,
             end: r.end + this.range.start,
             text: r.text,
+        };
+    }
+
+    private mapCodeAction(c: CodeAction): CodeAction {
+        return {
+            description: c.description,
+            replacements: c.replacements.map(this.mapReplacement, this),
         };
     }
 }

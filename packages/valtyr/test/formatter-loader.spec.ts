@@ -21,6 +21,7 @@ test('loads TSLint formatter', (t) => {
             character: 0,
         },
         fix: undefined,
+        codeActions: undefined,
     }]});
     t.is(instance.flush!(), 'foo.ts');
 

@@ -28,7 +28,7 @@ export class DefaultStatePersistence implements StatePersistence {
                 log("Version mismatch: expected '%s', actual: '%s'", CACHE_VERSION, content?.v);
                 return;
             }
-            return content.state;
+            return rebuildState(content.state);
         } catch {
             log("Error loading cache '%s'", fileName);
             return;
@@ -45,6 +45,27 @@ export class DefaultStatePersistence implements StatePersistence {
             log("Error writing cache '%s'", fileName);
         }
     }
+}
+
+/** Ensures properties are in the same order and properties with undefined value are added back */
+function rebuildState(state: StaticProgramState): StaticProgramState {
+    return {
+        files: state.files.map((f) => !f.result?.length ? f : {...f, result: f.result.map((finding) => ({
+            ruleName: finding.ruleName,
+            severity: finding.severity,
+            message: finding.message,
+            start: finding.start,
+            end: finding.end,
+            fix: finding.fix,
+            codeActions: finding.codeActions,
+        }))}),
+        lookup: state.lookup,
+        v: state.v,
+        ts: state.ts,
+        cs: state.cs,
+        global: state.global,
+        options: state.options,
+    };
 }
 
 function buildFilename(tsconfigPath: string) {

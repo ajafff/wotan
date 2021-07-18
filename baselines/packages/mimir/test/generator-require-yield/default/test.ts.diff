@@ -1,0 +1,113 @@
++++ generator-require-yield    Convert to regular function.
+@@ -2,9 +2,9 @@
+     function *foo() {
+         if (Boolean()) {
+             yield;
+         }
+-        (function *() {})
++        (function () {})
+     }
+     function *bar() {
+         (function *() {})
+         yield;
+
++++ generator-require-yield    Convert to regular function.
+@@ -5,9 +5,9 @@
+         }
+         (function *() {})
+     }
+     function *bar() {
+-        (function *() {})
++        (function () {})
+         yield;
+     }
+     function *baz() {
+         (function *() {
+
++++ generator-require-yield    Convert to regular function.
+@@ -8,9 +8,9 @@
+     function *bar() {
+         (function *() {})
+         yield;
+     }
+-    function *baz() {
++    function baz() {
+         (function *() {
+             yield;
+         })
+     }
+
++++ generator-require-yield    Convert to regular function.
+@@ -14,9 +14,9 @@
+             yield;
+         })
+     }
+     function *bas() {
+-        yield function *() {};
++        yield function () {};
+     }
+ });
+ 
+ const key = 'foo';
+
++++ generator-require-yield    Convert to regular function.
+@@ -21,9 +21,9 @@
+ 
+ const key = 'foo';
+ class Foo {
+     method() {}
+-    public *generator() {}
++    public generator() {}
+     private generatorProp = function *() {};
+ }
+ {
+     let obj = {
+
++++ generator-require-yield    Convert to regular function.
+@@ -22,9 +22,9 @@
+ const key = 'foo';
+ class Foo {
+     method() {}
+     public *generator() {}
+-    private generatorProp = function *() {};
++    private generatorProp = function () {};
+ }
+ {
+     let obj = {
+         *[key]() {},
+
++++ generator-require-yield    Convert to regular function.
+@@ -26,9 +26,9 @@
+     private generatorProp = function *() {};
+ }
+ {
+     let obj = {
+-        *[key]() {},
++        [key]() {},
+         *'name'() {},
+         *"method'name"() {},
+     };
+ }
+
++++ generator-require-yield    Convert to regular function.
+@@ -27,8 +27,8 @@
+ }
+ {
+     let obj = {
+         *[key]() {},
+-        *'name'() {},
++        'name'() {},
+         *"method'name"() {},
+     };
+ }
+
++++ generator-require-yield    Convert to regular function.
+@@ -28,7 +28,7 @@
+ {
+     let obj = {
+         *[key]() {},
+         *'name'() {},
+-        *"method'name"() {},
++        "method'name"() {},
+     };
+ }

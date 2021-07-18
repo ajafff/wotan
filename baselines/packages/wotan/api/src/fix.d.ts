@@ -1,5 +1,5 @@
 import * as ts from 'typescript';
-import { Fix } from '@fimbul/ymir';
+import { CodeAction } from '@fimbul/ymir';
 export interface FixResult {
     result: string;
     fixed: number;
@@ -12,4 +12,4 @@ export interface FixResult {
  * of this fix are not applied again.
  * At least one fix will be applied.
  */
-export declare function applyFixes(source: string, fixes: Fix[]): FixResult;
+export declare function applyFixes(source: string, fixes: readonly CodeAction[]): FixResult;

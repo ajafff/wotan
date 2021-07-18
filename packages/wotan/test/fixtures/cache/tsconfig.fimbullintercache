@@ -12,6 +12,7 @@ state:
             line: 0
             position: 9
           fix:
+            description: auto fix
             replacements:
               - end: 9
                 start: 0
@@ -28,6 +29,7 @@ state:
             line: 1
             position: 36
           fix:
+            description: Remove line switch
             replacements:
               - end: 36
                 start: 10
@@ -48,6 +50,6 @@ state:
     a.ts: 0
     b.ts: 1
   options: '-10679607802'
-  ts: 4.3.0-dev.20210211
+  ts: 4.3.0-dev.20210307
   v: 1
 v: 1

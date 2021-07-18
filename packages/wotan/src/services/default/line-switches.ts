@@ -13,6 +13,7 @@ import {
     FindingPosition,
     Severity,
     Replacement,
+    CodeAction,
 } from '@fimbul/ymir';
 
 export const LINE_SWITCH_REGEX = /^ *wotan-(enable|disable)((?:-next)?-line)?( +(?:(?:[\w-]+\/)*[\w-]+ *, *)*(?:[\w-]+\/)*[\w-]+)? *$/;
@@ -239,7 +240,8 @@ class Filter implements FindingFilter {
             message, // tslint:disable-line:object-shorthand-properties-first
             start: this.createPosition(location.pos),
             end: this.createPosition(location.end),
-            fix: {replacements: [Replacement.delete(fixLocation.pos, fixLocation.end)]},
+            fix: CodeAction.create('Remove line switch', Replacement.delete(fixLocation.pos, fixLocation.end)),
+            codeActions: undefined,
         };
     }
 }

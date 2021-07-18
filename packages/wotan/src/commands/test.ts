@@ -5,23 +5,26 @@ import { CachedFileSystem } from '../services/cached-file-system';
 import { createBaseline } from '../baseline';
 import * as path from 'path';
 import * as chalk from 'chalk';
-import { unixifyPath } from '../utils';
+import { flatMap, unixifyPath } from '../utils';
 import * as glob from 'glob';
 import { satisfies, SemVer } from 'semver';
 import { LintOptions, Runner } from '../runner';
 import * as ts from 'typescript';
 import * as diff from 'diff';
+import { applyFixes } from '../fix';
 import { GLOBAL_OPTIONS_SPEC } from '../argparse';
 import { OptionParser } from '../optparse';
 
 const enum BaselineKind {
     Lint = 'lint',
     Fix = 'fix',
+    Actions = 'diff',
 }
 
 const TEST_OPTION_SPEC = {
     ...GLOBAL_OPTIONS_SPEC,
-    fix: OptionParser.Transform.noDefault(GLOBAL_OPTIONS_SPEC.fix),
+    fix: OptionParser.Transform.withDefault(OptionParser.Transform.noDefault(GLOBAL_OPTIONS_SPEC.fix), true),
+    codeActions: OptionParser.Transform.withDefault(OptionParser.Factory.parsePrimitive('boolean'), true),
     typescriptVersion: OptionParser.Factory.parsePrimitive('string'),
 };
 
@@ -67,7 +70,6 @@ class TestCommandRunner extends AbstractCommandRunner {
                 const relative = path.relative(root, file);
                 if (relative.startsWith('..' + path.sep))
                     throw new ConfigurationError(`Testing file '${file}' outside of '${root}'.`);
-                const actual = kind === BaselineKind.Fix ? summary.content : createBaseline(summary);
                 const baselineFile = `${path.resolve(baselineDir, relative)}.${kind}`;
                 const end = (pass: boolean, text: string, baselineDiff?: string) => {
                     this.logger.log(`  ${chalk.grey.dim(path.relative(basedir, baselineFile))} ${chalk[pass ? 'green' : 'red'](text)}`);
@@ -78,15 +80,21 @@ class TestCommandRunner extends AbstractCommandRunner {
                     success = false;
                     return !options.bail;
                 };
-                if (kind === BaselineKind.Fix && summary.fixes === 0) {
-                    if (!this.fs.isFile(baselineFile))
-                        return true;
-                    if (options.updateBaselines) {
-                        this.fs.remove(baselineFile);
-                        return end(true, 'REMOVED');
+                let actual: string;
+                if (kind === BaselineKind.Lint) {
+                    actual = createBaseline(summary);
+                } else {
+                    if (kind === BaselineKind.Actions ? summary.findings.every((f) => !f.codeActions?.length) : summary.fixes === 0) {
+                        if (!this.fs.isFile(baselineFile))
+                            return true;
+                        if (options.updateBaselines) {
+                            this.fs.remove(baselineFile);
+                            return end(true, 'REMOVED');
+                        }
+                        baselinesSeen.push(unixifyPath(baselineFile));
+                        return end(false, 'EXISTS');
                     }
-                    baselinesSeen.push(unixifyPath(baselineFile));
-                    return end(false, 'EXISTS');
+                    actual = kind === BaselineKind.Actions ? applyCodeActions(summary) : summary.content;
                 }
                 baselinesSeen.push(unixifyPath(baselineFile));
                 let expected: string;
@@ -119,7 +127,7 @@ class TestCommandRunner extends AbstractCommandRunner {
         };
         for (const pattern of options.files) {
             for (const testcase of glob.sync(pattern, globOptions)) {
-                const {typescriptVersion, ...testConfig} = OptionParser.parse(
+                const {typescriptVersion, codeActions, ...testConfig} = OptionParser.parse(
                     require(testcase),
                     TEST_OPTION_SPEC,
                     {validate: true, context: testcase, exhaustive: true},
@@ -135,7 +143,7 @@ class TestCommandRunner extends AbstractCommandRunner {
                 this.logger.log(path.relative(basedir, testcase));
                 this.directoryService.cwd = root;
                 baselinesSeen = [];
-                if (!this.test(testConfig, host))
+                if (!this.test(testConfig, host, codeActions))
                     return false;
                 if (options.exact) {
                     const remainingGlobOptions = {...globOptions, cwd: baselineDir, ignore: baselinesSeen};
@@ -156,19 +164,19 @@ class TestCommandRunner extends AbstractCommandRunner {
         return success;
     }
 
-    private test(config: {[K in keyof LintOptions]: LintOptions[K] | (K extends 'fix' ? undefined : never)}, host: RuleTestHost): boolean {
-        const lintOptions: LintOptions = {...config, fix: false};
-        const lintResult = Array.from(this.runner.lintCollection(lintOptions));
+    private test(config: LintOptions, host: RuleTestHost, codeActions: boolean): boolean {
+        const lintResult = Array.from(this.runner.lintCollection({...config, fix: false}));
         let containsFixes = false;
         for (const [fileName, summary] of lintResult) {
             if (!host.checkResult(fileName, BaselineKind.Lint, summary))
                 return false;
-            containsFixes = containsFixes || summary.findings.some(isFixable);
+            if (codeActions && !host.checkResult(fileName, BaselineKind.Actions, summary))
+                return false;
+            containsFixes ||= summary.findings.some(isFixable);
         }
 
-        if (config.fix || config.fix === undefined) {
-            lintOptions.fix = config.fix || true; // fix defaults to true if not specified
-            const fixResult = containsFixes ? this.runner.lintCollection(lintOptions) : lintResult;
+        if (config.fix) {
+            const fixResult = containsFixes ? this.runner.lintCollection(config) : lintResult;
             for (const [fileName, summary] of fixResult)
                 if (!host.checkResult(fileName, BaselineKind.Fix, summary))
                     return false;
@@ -211,8 +219,7 @@ function createBaselineDiff(actual: string, expected: string) {
         chalk.red('Expected'),
         chalk.green('Actual'),
     ];
-    const lines = diff.createPatch('', expected, actual, '', '').split(/\n(?!\\)/g).slice(4);
-    for (let line of lines) {
+    for (let line of createPatch(expected, actual)) {
         switch (line[0]) {
             case '@':
                 line = chalk.blueBright(line);
@@ -228,11 +235,24 @@ function createBaselineDiff(actual: string, expected: string) {
     return result.join('\n');
 }
 
+function createPatch(oldContent: string, newContent: string) {
+    return diff.createPatch('', oldContent, newContent, '', '').split(/\n(?!\\)/g).slice(4);
+}
+
 function prettyLine(line: string): string {
     return line
         .replace(/\t/g, '\u2409') // ␉
         .replace(/\r$/, '\u240d') // ␍
         .replace(/^\uFEFF/, '<BOM>');
+}
+
+function applyCodeActions(summary: FileSummary): string {
+    return flatMap(summary.findings, (finding) => !finding.codeActions?.length
+        ? []
+        : finding.codeActions.map((action) =>
+            `+++ ${finding.ruleName}    ${action.description}\n${createPatch(summary.content, applyFixes(summary.content, [action]).result).join('\n')}`,
+        ),
+    ).join('\n');
 }
 
 export const module = new ContainerModule((bind) => {

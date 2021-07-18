@@ -10,6 +10,7 @@ import {
     StaticProgramState,
     StatePersistence,
     ContentId,
+    CodeAction,
 } from '@fimbul/ymir';
 import { Container, BindingScopeEnum, ContainerModule } from 'inversify';
 import { createCoreModule } from '../src/di/core.module';
@@ -120,19 +121,13 @@ export class LanguageServiceInterceptor implements Partial<ts.LanguageService> {
                 if (finding.fix !== undefined) {
                     fixableFindings ??= result.findings.filter((f) => f.fix !== undefined);
                     const multipleFixableFindingsForRule = fixableFindings.some((f) => f.ruleName === finding.ruleName && f !== finding);
-                    ruleFixes.push({
-                        fixName: 'wotan:' + finding.ruleName,
-                        description: 'Fix ' + finding.ruleName,
-                        fixId: multipleFixableFindingsForRule ? 'wotan:' + finding.ruleName : undefined,
-                        fixAllDescription: multipleFixableFindingsForRule ? 'Fix all ' + finding.ruleName : undefined,
-                        changes: [{
-                            fileName,
-                            textChanges:
-                                finding.fix.replacements.map((r) => ({span: {start: r.start, length: r.end - r.start}, newText: r.text})),
-                        }],
-                    });
-
+                    ruleFixes.push(codeActionToCodeFix(fileName, finding.ruleName, finding.fix, multipleFixableFindingsForRule));
                 }
+
+                if (finding.codeActions)
+                    for (const action of finding.codeActions)
+                        ruleFixes.push(codeActionToCodeFix(fileName, finding.ruleName, action));
+
                 disables.push({
                     fixName: 'disable ' + finding.ruleName,
                     description: `Disable ${finding.ruleName} for this line`,
@@ -422,6 +417,20 @@ class ProjectFileSystem implements FileSystem {
             },
         };
     }
+}
+
+function codeActionToCodeFix(fileName: string, ruleName: string, action: CodeAction, fixAll?: boolean): ts.CodeFixAction {
+    return {
+        fixName: `wotan:${ruleName}:${action.description}`,
+        description: `[${ruleName}] ${action.description}`,
+        fixId: fixAll ? 'wotan:' + ruleName : undefined,
+        fixAllDescription: fixAll ? 'Fix all ' + ruleName : undefined,
+        changes: [{
+            fileName,
+            textChanges:
+                action.replacements.map((r) => ({span: {start: r.start, length: r.end - r.start}, newText: r.text})),
+        }],
+    };
 }
 
 // TODO this should be done by Linter or FindingFilter

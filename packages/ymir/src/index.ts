@@ -13,6 +13,8 @@ export type LintResult = Iterable<[string, FileSummary]>;
 
 export type FileSummary = LintAndFixFileResult;
 
+export type OneOrMany<T> = T | ReadonlyArray<T>;
+
 export interface LintAndFixFileResult {
     content: string;
     findings: ReadonlyArray<Finding>;
@@ -37,9 +39,19 @@ export const Replacement = {
     },
 };
 
-export interface Fix {
-    readonly replacements: ReadonlyArray<Replacement>;
+export interface CodeAction {
+    readonly description: string;
+    readonly replacements: readonly Replacement[];
 }
+
+export const CodeAction = {
+    create(description: string, replacements: OneOrMany<Replacement>): CodeAction {
+        return {
+            description,
+            replacements: Array.isArray(replacements) ? replacements : [replacements],
+        };
+    },
+};
 
 export interface Finding {
     readonly start: FindingPosition;
@@ -47,7 +59,8 @@ export interface Finding {
     readonly message: string;
     readonly ruleName: string;
     readonly severity: Severity;
-    readonly fix: Fix | undefined;
+    readonly fix: CodeAction | undefined;
+    readonly codeActions: ReadonlyArray<CodeAction> | undefined;
 }
 
 export const Finding = {
@@ -92,7 +105,13 @@ export interface RulePredicateContext {
 
 export interface RuleContext extends RulePredicateContext {
     readonly sourceFile: ts.SourceFile;
-    addFinding(start: number, end: number, message: string, fix?: Replacement | ReadonlyArray<Replacement>): void;
+    addFinding(
+        start: number,
+        end: number,
+        message: string,
+        fix?: OneOrMany<Replacement> | CodeAction,
+        codeActions?: OneOrMany<CodeAction>,
+    ): void;
     getFlatAst(): ReadonlyArray<ts.Node>;
     getWrappedAst(): WrappedAst;
 }
@@ -157,7 +176,7 @@ export abstract class AbstractRule {
     public static readonly requiresTypeInformation: boolean = false;
     public static deprecated: boolean | string = false;
     public static supports?: RulePredicate = undefined;
-    public static validateConfig?(config: any): string[] | string | undefined;
+    public static validateConfig?(config: any): OneOrMany<string> | undefined;
 
     public readonly sourceFile: ts.SourceFile;
 
@@ -171,12 +190,23 @@ export abstract class AbstractRule {
 
     public abstract apply(): void;
 
-    public addFinding(start: number, end: number, message: string, fix?: Replacement | ReadonlyArray<Replacement>) {
-        return this.context.addFinding(start, end, message, fix);
+    public addFinding(
+        start: number,
+        end: number,
+        message: string,
+        fix?: OneOrMany<Replacement> | CodeAction,
+        codeActions?: OneOrMany<CodeAction>,
+    ) {
+        return this.context.addFinding(start, end, message, fix, codeActions);
     }
 
-    public addFindingAtNode(node: ts.Node, message: string, fix?: Replacement | ReadonlyArray<Replacement>) {
-        return this.addFinding(node.getStart(this.sourceFile), node.end, message, fix);
+    public addFindingAtNode(
+        node: ts.Node,
+        message: string,
+        fix?: OneOrMany<Replacement> | CodeAction,
+        codeActions?: OneOrMany<CodeAction>,
+    ) {
+        return this.addFinding(node.getStart(this.sourceFile), node.end, message, fix, codeActions);
     }
 }
 
